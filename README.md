@@ -97,9 +97,12 @@ For testing, use the demo environment with the provided credentials:
 ```python
 from litecard import LitecardClient
 
+USERNAME = "your_username"
+PASSWORD = "your_password"
+
 client = LitecardClient(
-    username="OxfordShop-demo-brand@litecard.com.au", 
-    password="oXaWbHdhc1G8PB78MNo$",
+    username=USERNAME,
+    password=PASSWORD,
     base_url="https://bff-api.demo.litecard.io"
 )
 
