@@ -4,7 +4,7 @@ Download resource for the Litecard API.
 
 from typing import Dict, Any
 from .base import LitecardResource
-from ..models import WelcomeDetails
+from ..models_ import WelcomeDetails
 
 
 class Download(LitecardResource):
@@ -31,7 +31,7 @@ class Download(LitecardResource):
         url = f"/api/v1/downloadId/{download_id}"
         response = self._client._make_request_sync("GET", url)
         
-        return WelcomeDetails(**response["body"])
+        return WelcomeDetails(**response)
     
     async def get_download_urls_async(self, download_id: str) -> WelcomeDetails:
         """Get download URLs asynchronously."""
@@ -41,4 +41,4 @@ class Download(LitecardResource):
         url = f"/api/v1/downloadId/{download_id}"
         response = await self._client._make_request_async("GET", url)
         
-        return WelcomeDetails(**response["body"])
+        return WelcomeDetails(**response)

@@ -4,7 +4,7 @@ Export resource for the Litecard API.
 
 from typing import Dict, Any
 from .base import LitecardResource
-from ..models import ExportRequest, ExportResponse
+from ..models_ import ExportRequest, ExportResponse
 
 
 class Export(LitecardResource):

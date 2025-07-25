@@ -5,7 +5,7 @@ Scan resource for the Litecard API.
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 from .base import LitecardResource, PaginatedResponse
-from ..models import ScanRequest, ScanResponse, Scan as ScanModel
+from ..models_ import ScanRequest, ScanResponse, Scan as ScanModel
 
 
 class Scan(LitecardResource):

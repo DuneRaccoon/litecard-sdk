@@ -10,7 +10,7 @@ def test_imports():
     """Test that all main components can be imported."""
     from litecard import LitecardClient, LitecardAsyncClient
     from litecard import LitecardAPIError, AuthenticationError
-    from litecard.models import Card, Template, SignUpResponse
+    from litecard.models_ import Card, Template, SignUpResponse
     from litecard.utils import build_welcome_url, validate_email
     
     assert LitecardClient is not None
@@ -73,7 +73,7 @@ def test_resource_initialization():
 
 def test_model_creation():
     """Test that Pydantic models can be created."""
-    from litecard.models import SignUpResponse, Card, Template
+    from litecard.models_ import SignUpResponse, Card, Template
     
     # Test SignUpResponse model
     response = SignUpResponse(

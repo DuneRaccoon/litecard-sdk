@@ -4,7 +4,7 @@ Webhook resource for the Litecard API.
 
 from typing import Dict, Any
 from .base import LitecardResource
-from ..models import WebhookRegistrationRequest
+from ..models_ import WebhookRegistrationRequest
 
 
 class Webhook(LitecardResource):

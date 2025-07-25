@@ -16,8 +16,19 @@ from .exceptions import (
     ServerError
 )
 
+# Import utility functions for easy access
+from .utils import (
+    create_card_payload,
+    create_location_override,
+    create_template_overrides_with_locations,
+    create_notification_payload,
+    build_welcome_url,
+    validate_email,
+    format_phone_international
+)
+
 # Import models for easy access
-from .models import (
+from .models_ import (
     # Authentication models
     AuthenticationRequest,
     AuthenticationResponse,
@@ -47,7 +58,7 @@ from .models import (
     
     # Card models
     BaseCardPayload,
-    CardOwnerCopy,
+    CardOwner,
     Card,
     
     # Sign up models
@@ -102,6 +113,15 @@ __all__ = [
     "NotFoundError",
     "ServerError",
     
+    # Utility functions
+    "create_card_payload",
+    "create_location_override",
+    "create_template_overrides_with_locations",
+    "create_notification_payload",
+    "build_welcome_url",
+    "validate_email",
+    "format_phone_international",
+    
     # Model classes
     "AuthenticationRequest",
     "AuthenticationResponse",
@@ -123,7 +143,7 @@ __all__ = [
     "GoogleWalletSettings",
     "Template",
     "BaseCardPayload",
-    "CardOwnerCopy",
+    "CardOwner",
     "Card",
     "SignUpOptions",
     "PrivateSignUpRequest",

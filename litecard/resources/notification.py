@@ -4,7 +4,7 @@ Notification resource for the Litecard API.
 
 from typing import Dict, Any, List, Union, Optional
 from .base import LitecardResource, PaginatedResponse
-from ..models import NotificationRequest
+from ..models_ import NotificationRequest
 
 
 class Notification(LitecardResource):

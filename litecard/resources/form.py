@@ -4,7 +4,7 @@ Form resource for the Litecard API.
 
 from typing import Dict, Any
 from .base import LitecardResource
-from ..models import Form as FormModel
+from ..models_ import Form as FormModel
 
 
 class Form(LitecardResource):

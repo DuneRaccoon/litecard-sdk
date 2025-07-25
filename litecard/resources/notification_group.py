@@ -5,7 +5,7 @@ Notification Group resource for the Litecard API.
 from typing import Dict, Any, List, Union, Optional
 from datetime import datetime
 from .base import LitecardResource, PaginatedResponse
-from ..models import NotificationGroup as NotificationGroupModel
+from ..models_ import NotificationGroup as NotificationGroupModel
 
 
 class NotificationGroup(LitecardResource):

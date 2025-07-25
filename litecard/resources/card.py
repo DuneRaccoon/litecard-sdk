@@ -4,7 +4,12 @@ Card resource for the Litecard API.
 
 from typing import Dict, Any, List, Union, Optional
 from .base import LitecardResource, PaginatedResponse
-from ..models import Card as CardModel, PrivateSignUpRequest, SignUpResponse
+from ..models_ import (
+    Card as CardModel,
+    CardStatus,
+    PrivateSignUpRequest,
+    SignUpResponse
+)
 
 
 class Card(LitecardResource):
@@ -20,7 +25,8 @@ class Card(LitecardResource):
         template_id: str,
         card_payload: Dict[str, Any],
         options: Optional[Dict[str, Any]] = None,
-        tier: Optional[str] = None
+        tier: Optional[str] = None,
+        template_overrides: Optional[Dict[str, Any]] = None
     ) -> SignUpResponse:
         """
         Create a new card.
@@ -28,8 +34,9 @@ class Card(LitecardResource):
         Args:
             template_id: ID of the template to use
             card_payload: Card data (email, phone, custom fields, etc.)
-            options: Optional card creation options
+            options: Optional card creation options (e.g., {"emailInvitationEnabled": True})
             tier: Optional tier for multi-tiered templates
+            template_overrides: Optional template overrides for custom locations, images, etc.
             
         Returns:
             Card creation response with card details
@@ -47,6 +54,9 @@ class Card(LitecardResource):
         
         if tier:
             request_data["tier"] = tier
+            
+        if template_overrides:
+            request_data["templateOverrides"] = template_overrides
         
         response = self._client._make_request_sync(
             "POST",
@@ -59,18 +69,20 @@ class Card(LitecardResource):
     def update_card(
         self, 
         card_id: str,
-        card_payload: Dict[str, Any],
+        card_payload: Optional[Dict[str, Any]] = None,
         sync_static_fields: Optional[bool] = None,
-        tier: Optional[str] = None
+        tier: Optional[str] = None,
+        template_overrides: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Update an existing card.
         
         Args:
             card_id: Card ID to update
-            card_payload: Updated card data
+            card_payload: Updated card data (optional)
             sync_static_fields: Flag to sync static fields
             tier: Optional tier for multi-tiered templates
+            template_overrides: Optional template overrides for custom locations, images, etc.
             
         Returns:
             Update response
@@ -79,15 +91,20 @@ class Card(LitecardResource):
             raise TypeError("This method requires a synchronous client")
         
         request_data = {
-            "cardId": card_id,
-            "cardPayload": card_payload
+            "cardId": card_id
         }
+        
+        if card_payload:
+            request_data["cardPayload"] = card_payload
         
         if sync_static_fields is not None:
             request_data["syncStaticFields"] = sync_static_fields
         
         if tier:
             request_data["tier"] = tier
+            
+        if template_overrides:
+            request_data["templateOverrides"] = template_overrides
         
         response = self._client._make_request_sync(
             "PATCH",
@@ -97,7 +114,7 @@ class Card(LitecardResource):
         
         return response
     
-    def set_card_status(self, card_id: str, status: str) -> Dict[str, Any]:
+    def set_card_status(self, card_id: str, status: CardStatus) -> Dict[str, Any]:
         """
         Set card status (ACTIVE, INACTIVE, DELETED).
         
@@ -115,7 +132,7 @@ class Card(LitecardResource):
         response = self._client._make_request_sync(
             "POST",
             url,
-            json_data={"cardId": card_id, "status": status}
+            json_data={"cardId": card_id, "status": status.value}
         )
         
         return response
@@ -135,7 +152,7 @@ class Card(LitecardResource):
     def list_cards_by_template(
         self,
         template_id: str,
-        limit: Optional[int] = None,
+        limit: int = 10,
         next_token: Optional[str] = None,
         paginated: bool = False
     ) -> Union[List['Card'], PaginatedResponse['Card']]:
@@ -247,7 +264,8 @@ class Card(LitecardResource):
         template_id: str,
         card_payload: Dict[str, Any],
         options: Optional[Dict[str, Any]] = None,
-        tier: Optional[str] = None
+        tier: Optional[str] = None,
+        template_overrides: Optional[Dict[str, Any]] = None
     ) -> SignUpResponse:
         """Create a new card asynchronously."""
         if not hasattr(self._client, '_make_request_async'):
@@ -263,6 +281,9 @@ class Card(LitecardResource):
         
         if tier:
             request_data["tier"] = tier
+            
+        if template_overrides:
+            request_data["templateOverrides"] = template_overrides
         
         response = await self._client._make_request_async(
             "POST",
@@ -275,24 +296,30 @@ class Card(LitecardResource):
     async def update_card_async(
         self,
         card_id: str,
-        card_payload: Dict[str, Any],
+        card_payload: Optional[Dict[str, Any]] = None,
         sync_static_fields: Optional[bool] = None,
-        tier: Optional[str] = None
+        tier: Optional[str] = None,
+        template_overrides: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Update an existing card asynchronously."""
         if not hasattr(self._client, '_make_request_async'):
             raise TypeError("This method requires an asynchronous client")
         
         request_data = {
-            "cardId": card_id,
-            "cardPayload": card_payload
+            "cardId": card_id
         }
+        
+        if card_payload:
+            request_data["cardPayload"] = card_payload
         
         if sync_static_fields is not None:
             request_data["syncStaticFields"] = sync_static_fields
         
         if tier:
             request_data["tier"] = tier
+            
+        if template_overrides:
+            request_data["templateOverrides"] = template_overrides
         
         response = await self._client._make_request_async(
             "PATCH",

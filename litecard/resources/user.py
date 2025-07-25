@@ -4,7 +4,7 @@ User resource for the Litecard API.
 
 from typing import Dict, Any, List
 from .base import LitecardResource
-from ..models import User as UserModel
+from ..models_ import User as UserModel
 
 
 class User(LitecardResource):

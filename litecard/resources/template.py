@@ -4,7 +4,7 @@ Template resource for the Litecard API.
 
 from typing import Dict, Any, List, Union, Optional
 from .base import LitecardResource, PaginatedResponse
-from ..models import Template as TemplateModel
+from ..models_ import Template as TemplateModel
 
 
 class Template(LitecardResource):

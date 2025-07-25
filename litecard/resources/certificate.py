@@ -4,7 +4,7 @@ Certificate resource for the Litecard API.
 
 from typing import Dict, Any, List, Union, Optional
 from .base import LitecardResource, PaginatedResponse
-from ..models import Certificate as CertificateModel, CertificateUpload
+from ..models_ import Certificate as CertificateModel, CertificateUpload
 
 
 class Certificate(LitecardResource):

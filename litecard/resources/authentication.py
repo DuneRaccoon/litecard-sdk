@@ -4,7 +4,7 @@ Authentication resource for the Litecard API.
 
 from typing import Dict, Any
 from .base import LitecardResource
-from ..models import AuthenticationRequest, AuthenticationResponse
+from ..models_ import AuthenticationRequest, AuthenticationResponse
 
 
 class Authentication(LitecardResource):
