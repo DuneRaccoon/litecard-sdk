@@ -1,0 +1,397 @@
+"""
+Card resource for the Litecard API.
+"""
+
+from typing import Dict, Any, List, Union, Optional
+from .base import LitecardResource, PaginatedResponse
+from ..models import Card as CardModel, PrivateSignUpRequest, SignUpResponse
+
+
+class Card(LitecardResource):
+    """
+    Card resource for managing digital wallet cards.
+    """
+    
+    endpoint = "card"
+    model_class = CardModel
+    
+    def create_card(
+        self, 
+        template_id: str,
+        card_payload: Dict[str, Any],
+        options: Optional[Dict[str, Any]] = None,
+        tier: Optional[str] = None
+    ) -> SignUpResponse:
+        """
+        Create a new card.
+        
+        Args:
+            template_id: ID of the template to use
+            card_payload: Card data (email, phone, custom fields, etc.)
+            options: Optional card creation options
+            tier: Optional tier for multi-tiered templates
+            
+        Returns:
+            Card creation response with card details
+        """
+        if not hasattr(self._client, '_make_request_sync'):
+            raise TypeError("This method requires a synchronous client")
+        
+        request_data = {
+            "templateId": template_id,
+            "cardPayload": card_payload
+        }
+        
+        if options:
+            request_data["options"] = options
+        
+        if tier:
+            request_data["tier"] = tier
+        
+        response = self._client._make_request_sync(
+            "POST",
+            self._build_url(),
+            json_data=request_data
+        )
+        
+        return SignUpResponse(**response)
+    
+    def update_card(
+        self, 
+        card_id: str,
+        card_payload: Dict[str, Any],
+        sync_static_fields: Optional[bool] = None,
+        tier: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Update an existing card.
+        
+        Args:
+            card_id: Card ID to update
+            card_payload: Updated card data
+            sync_static_fields: Flag to sync static fields
+            tier: Optional tier for multi-tiered templates
+            
+        Returns:
+            Update response
+        """
+        if not hasattr(self._client, '_make_request_sync'):
+            raise TypeError("This method requires a synchronous client")
+        
+        request_data = {
+            "cardId": card_id,
+            "cardPayload": card_payload
+        }
+        
+        if sync_static_fields is not None:
+            request_data["syncStaticFields"] = sync_static_fields
+        
+        if tier:
+            request_data["tier"] = tier
+        
+        response = self._client._make_request_sync(
+            "PATCH",
+            self._build_url(),
+            json_data=request_data
+        )
+        
+        return response
+    
+    def set_card_status(self, card_id: str, status: str) -> Dict[str, Any]:
+        """
+        Set card status (ACTIVE, INACTIVE, DELETED).
+        
+        Args:
+            card_id: Card ID
+            status: New status
+            
+        Returns:
+            Success response
+        """
+        if not hasattr(self._client, '_make_request_sync'):
+            raise TypeError("This method requires a synchronous client")
+        
+        url = self._build_url(suffix="status")
+        response = self._client._make_request_sync(
+            "POST",
+            url,
+            json_data={"cardId": card_id, "status": status}
+        )
+        
+        return response
+    
+    def get_card(self, card_id: str) -> 'Card':
+        """
+        Get a card by ID.
+        
+        Args:
+            card_id: Card ID
+            
+        Returns:
+            Card instance
+        """
+        return self.get(card_id)
+    
+    def list_cards_by_template(
+        self,
+        template_id: str,
+        limit: Optional[int] = None,
+        next_token: Optional[str] = None,
+        paginated: bool = False
+    ) -> Union[List['Card'], PaginatedResponse['Card']]:
+        """
+        Get cards by template ID.
+        
+        Args:
+            template_id: Template ID
+            limit: Maximum number of cards to return
+            next_token: Token for pagination
+            paginated: Return PaginatedResponse instead of list
+            
+        Returns:
+            List of cards or paginated response
+        """
+        if not hasattr(self._client, '_make_request_sync'):
+            raise TypeError("This method requires a synchronous client")
+        
+        params = {}
+        if limit is not None:
+            params["limit"] = limit
+        if next_token:
+            params["next"] = next_token
+        
+        url = f"/api/v1/card/template/{template_id}"
+        return self.list(url=url, paginated=paginated, **params)
+    
+    def create_card_and_template(
+        self,
+        template_payload: Dict[str, Any],
+        card_payload: Dict[str, Any],
+        options: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Create both card and template in one request.
+        
+        Args:
+            template_payload: Template configuration
+            card_payload: Card data
+            options: Optional card creation options
+            
+        Returns:
+            Response with both template and card details
+        """
+        if not hasattr(self._client, '_make_request_sync'):
+            raise TypeError("This method requires a synchronous client")
+        
+        request_data = {
+            "templatePayload": template_payload,
+            "cardPayload": card_payload
+        }
+        
+        if options:
+            request_data["options"] = options
+        
+        url = self._build_url(suffix="template")
+        response = self._client._make_request_sync(
+            "POST",
+            url,
+            json_data=request_data
+        )
+        
+        return response
+    
+    def generate_business_card(
+        self,
+        template_id: str,
+        card_payload: Dict[str, Any],
+        business_card: Dict[str, Any],
+        options: Optional[Dict[str, Any]] = None
+    ) -> SignUpResponse:
+        """
+        Generate a business card.
+        
+        Args:
+            template_id: Template ID
+            card_payload: Card data
+            business_card: Business card specific data
+            options: Optional card creation options
+            
+        Returns:
+            Card creation response
+        """
+        if not hasattr(self._client, '_make_request_sync'):
+            raise TypeError("This method requires a synchronous client")
+        
+        request_data = {
+            "templateId": template_id,
+            "cardPayload": card_payload,
+            "businessCard": business_card
+        }
+        
+        if options:
+            request_data["options"] = options
+        
+        url = "/api/v1/card/business"
+        response = self._client._make_request_sync(
+            "POST",
+            url,
+            json_data=request_data
+        )
+        
+        return SignUpResponse(**response)
+    
+    # Async methods
+    
+    async def create_card_async(
+        self,
+        template_id: str,
+        card_payload: Dict[str, Any],
+        options: Optional[Dict[str, Any]] = None,
+        tier: Optional[str] = None
+    ) -> SignUpResponse:
+        """Create a new card asynchronously."""
+        if not hasattr(self._client, '_make_request_async'):
+            raise TypeError("This method requires an asynchronous client")
+        
+        request_data = {
+            "templateId": template_id,
+            "cardPayload": card_payload
+        }
+        
+        if options:
+            request_data["options"] = options
+        
+        if tier:
+            request_data["tier"] = tier
+        
+        response = await self._client._make_request_async(
+            "POST",
+            self._build_url(),
+            json_data=request_data
+        )
+        
+        return SignUpResponse(**response)
+    
+    async def update_card_async(
+        self,
+        card_id: str,
+        card_payload: Dict[str, Any],
+        sync_static_fields: Optional[bool] = None,
+        tier: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Update an existing card asynchronously."""
+        if not hasattr(self._client, '_make_request_async'):
+            raise TypeError("This method requires an asynchronous client")
+        
+        request_data = {
+            "cardId": card_id,
+            "cardPayload": card_payload
+        }
+        
+        if sync_static_fields is not None:
+            request_data["syncStaticFields"] = sync_static_fields
+        
+        if tier:
+            request_data["tier"] = tier
+        
+        response = await self._client._make_request_async(
+            "PATCH",
+            self._build_url(),
+            json_data=request_data
+        )
+        
+        return response
+    
+    async def set_card_status_async(self, card_id: str, status: str) -> Dict[str, Any]:
+        """Set card status asynchronously."""
+        if not hasattr(self._client, '_make_request_async'):
+            raise TypeError("This method requires an asynchronous client")
+        
+        url = self._build_url(suffix="status")
+        response = await self._client._make_request_async(
+            "POST",
+            url,
+            json_data={"cardId": card_id, "status": status}
+        )
+        
+        return response
+    
+    async def get_card_async(self, card_id: str) -> 'Card':
+        """Get a card by ID asynchronously."""
+        return await self.get_async(card_id)
+    
+    async def list_cards_by_template_async(
+        self,
+        template_id: str,
+        limit: Optional[int] = None,
+        next_token: Optional[str] = None,
+        paginated: bool = False
+    ) -> Union[List['Card'], PaginatedResponse['Card']]:
+        """Get cards by template ID asynchronously."""
+        if not hasattr(self._client, '_make_request_async'):
+            raise TypeError("This method requires an asynchronous client")
+        
+        params = {}
+        if limit is not None:
+            params["limit"] = limit
+        if next_token:
+            params["next"] = next_token
+        
+        url = f"/api/v1/card/template/{template_id}"
+        return await self.list_async(url=url, paginated=paginated, **params)
+    
+    async def create_card_and_template_async(
+        self,
+        template_payload: Dict[str, Any],
+        card_payload: Dict[str, Any],
+        options: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Create both card and template in one request asynchronously."""
+        if not hasattr(self._client, '_make_request_async'):
+            raise TypeError("This method requires an asynchronous client")
+        
+        request_data = {
+            "templatePayload": template_payload,
+            "cardPayload": card_payload
+        }
+        
+        if options:
+            request_data["options"] = options
+        
+        url = self._build_url(suffix="template")
+        response = await self._client._make_request_async(
+            "POST",
+            url,
+            json_data=request_data
+        )
+        
+        return response
+    
+    async def generate_business_card_async(
+        self,
+        template_id: str,
+        card_payload: Dict[str, Any],
+        business_card: Dict[str, Any],
+        options: Optional[Dict[str, Any]] = None
+    ) -> SignUpResponse:
+        """Generate a business card asynchronously."""
+        if not hasattr(self._client, '_make_request_async'):
+            raise TypeError("This method requires an asynchronous client")
+        
+        request_data = {
+            "templateId": template_id,
+            "cardPayload": card_payload,
+            "businessCard": business_card
+        }
+        
+        if options:
+            request_data["options"] = options
+        
+        url = "/api/v1/card/business"
+        response = await self._client._make_request_async(
+            "POST",
+            url,
+            json_data=request_data
+        )
+        
+        return SignUpResponse(**response)

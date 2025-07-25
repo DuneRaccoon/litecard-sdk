@@ -27,28 +27,18 @@ class PaginatedResponse(Generic[T]):
     """
     Generic container for paginated API responses from Litecard.
     
-    Supports both offset/limit and cursor-based pagination.
+    Litecard uses offset/limit pagination with next tokens.
     """
     
     def __init__(self, 
                 items: List[T], 
-                # Offset/limit pagination
-                offset: Optional[int] = None,
-                limit: Optional[int] = None,
-                total_count: Optional[int] = None,
-                # Cursor-based pagination  
-                next_cursor: Optional[str] = None,
-                previous_cursor: Optional[str] = None,
-                has_more: bool = False):
+                limit: int = 10,
+                next_token: Optional[str] = None,
+                total_count: Optional[int] = None):
         self.items = items
-        # Offset/limit pagination
-        self.offset = offset
         self.limit = limit
+        self.next_token = next_token
         self.total_count = total_count
-        # Cursor-based pagination
-        self.next_cursor = next_cursor
-        self.previous_cursor = previous_cursor
-        self.has_more = has_more
         
     def __len__(self) -> int:
         return len(self.items)
@@ -60,18 +50,9 @@ class PaginatedResponse(Generic[T]):
         return self.items[index]
     
     @property
-    def next_offset(self) -> Optional[int]:
-        """Get the next offset for offset-based pagination."""
-        if self.offset is not None and self.limit is not None and self.has_more:
-            return self.offset + self.limit
-        return None
-    
-    @property
-    def previous_offset(self) -> Optional[int]:
-        """Get the previous offset for offset-based pagination."""
-        if self.offset is not None and self.limit is not None and self.offset > 0:
-            return max(0, self.offset - self.limit)
-        return None
+    def has_more(self) -> bool:
+        """Check if there are more pages available."""
+        return bool(self.next_token)
 
 
 class LitecardResource:
@@ -127,8 +108,8 @@ class LitecardResource:
     
     def get_identifier(self) -> Optional[str]:
         """Get the identifier for this resource."""
-        # Try common identifier fields
-        for field in ['id', 'uuid', 'resource_id', 'identifier']:
+        # Try common identifier fields used in Litecard
+        for field in ['id', 'cardId', 'templateId', 'formId', 'downloadId', 'backlinkId', 'scanId', 'webhookId']:
             value = self._data.get(field)
             if value:
                 return str(value)
@@ -168,7 +149,7 @@ class LitecardResource:
         if self._parent_path:
             base = f"{self._parent_path}/{self.get_endpoint()}"
         else:
-            base = f"/v1/{self.get_endpoint()}"
+            base = f"/api/v1/{self.get_endpoint()}"
             
         url = base
         if resource_id is not None:
@@ -196,31 +177,19 @@ class LitecardResource:
 
     def _extract_pagination_data(self, response: Union[List[Dict[str, Any]], Dict[str, Any]], params: Dict[str, Any]) -> Dict[str, Any]:
         """Extract pagination information from a response."""
-        pagination_data = {}
+        limit = params.get('limit', 10)
+        next_token = None
+        total_count = None
         
-        # Handle offset/limit pagination
-        if 'offset' in params or 'limit' in params:
-            pagination_data['offset'] = params.get('offset', 0)
-            pagination_data['limit'] = params.get('limit', 50)
-            
-            if isinstance(response, dict):
-                pagination_data['total_count'] = response.get('total_count') or response.get('total')
-                items_count = len(extract_items_from_response(response))
-                pagination_data['has_more'] = items_count >= pagination_data['limit']
-            else:
-                pagination_data['total_count'] = len(response)
-                pagination_data['has_more'] = len(response) >= pagination_data['limit']
-        
-        # Handle cursor-based pagination
         if isinstance(response, dict):
-            if 'next_cursor' in response:
-                pagination_data['next_cursor'] = response['next_cursor']
-            if 'previous_cursor' in response:
-                pagination_data['previous_cursor'] = response['previous_cursor']
-            if 'has_more' in response:
-                pagination_data['has_more'] = response['has_more']
+            next_token = response.get('next')
+            total_count = response.get('total_count')
         
-        return pagination_data
+        return {
+            'limit': limit,
+            'next_token': next_token,
+            'total_count': total_count
+        }
         
     def _extract_items(self, response: Any) -> List[Dict[str, Any]]:
         """Extract items from a response."""
@@ -251,6 +220,10 @@ class LitecardResource:
         url = self._build_url(resource_id)
         response = self._client._make_request_sync("GET", url)
         
+        # Handle responses wrapped in 'body' key
+        if isinstance(response, dict) and 'body' in response:
+            response = response['body']
+        
         return self._create_instance(response)
         
     def list(
@@ -264,7 +237,7 @@ class LitecardResource:
         
         Args:
             paginated: If True, return a PaginatedResponse object instead of a list
-            **params: Filter parameters for the request (offset, limit, cursor, etc.)
+            **params: Filter parameters for the request (limit, next, etc.)
         
         Returns:
             Either a list of resource instances or a PaginatedResponse object
@@ -284,12 +257,9 @@ class LitecardResource:
             pagination_data = self._extract_pagination_data(response, prepared_params)
             return PaginatedResponse(
                 items=instances,
-                offset=pagination_data.get('offset'),
-                limit=pagination_data.get('limit'),
-                total_count=pagination_data.get('total_count'),
-                next_cursor=pagination_data.get('next_cursor'),
-                previous_cursor=pagination_data.get('previous_cursor'),
-                has_more=pagination_data.get('has_more', False)
+                limit=pagination_data.get('limit', 10),
+                next_token=pagination_data.get('next_token'),
+                total_count=pagination_data.get('total_count')
             )
         
         return instances
@@ -303,6 +273,15 @@ class LitecardResource:
         prepared_data = self._prepare_request_data(data)
         response = self._client._make_request_sync("POST", url, json_data=prepared_data)
         
+        # Handle responses that may be wrapped or have different structures
+        if isinstance(response, dict):
+            if 'body' in response:
+                response = response['body']
+            # For creation responses that return IDs directly
+            elif len(response) == 1 and any(key.endswith('Id') for key in response.keys()):
+                # This is likely just an ID response, merge with original data
+                response = {**prepared_data, **response}
+        
         return self._create_instance(response)
         
     def update(self: T, resource_id: str, data: Dict[str, Any]) -> T:
@@ -314,7 +293,10 @@ class LitecardResource:
         prepared_data = self._prepare_request_data(data)
         response = self._client._make_request_sync("PUT", url, json_data=prepared_data)
         
-        # Litecard typically returns the updated resource
+        # Handle responses wrapped in 'body' key
+        if isinstance(response, dict) and 'body' in response:
+            response = response['body']
+        
         return self._create_instance(response)
         
     def delete(self, resource_id: str) -> None:
@@ -329,8 +311,6 @@ class LitecardResource:
         """
         Generator that yields all resources matching the given parameters.
         
-        Supports both offset/limit and cursor-based pagination.
-        
         Args:
             **params: Filter parameters for the request
             
@@ -340,55 +320,29 @@ class LitecardResource:
         if not hasattr(self._client, '_make_request_sync'):
             raise TypeError("This method requires a synchronous client")
         
-        # Determine pagination type
-        use_cursor = 'cursor' in params
+        limit = params.get("limit", 10)
+        next_token = params.get("next")
         
-        if use_cursor:
-            # Cursor-based pagination
-            cursor = params.get('cursor')
-            while True:
-                if cursor:
-                    params['cursor'] = cursor
-                
-                page_response = self.list(url=url, paginated=True, **params)
-                
-                if not isinstance(page_response, PaginatedResponse):
-                    raise TypeError(f"Expected PaginatedResponse, got {type(page_response)}")
-                
-                if not page_response.items:
-                    break
-                    
-                for item in page_response.items:
-                    yield item
-                    
-                if not page_response.has_more or not page_response.next_cursor:
-                    break
-                    
-                cursor = page_response.next_cursor
-        else:
-            # Offset/limit pagination
-            offset = params.get("offset", 0)
-            limit = params.get("limit", 50)
+        while True:
+            current_params = {**params, "limit": limit}
+            if next_token:
+                current_params["next"] = next_token
             
-            while True:
-                params["offset"] = offset
-                params["limit"] = limit
+            page_response = self.list(url=url, paginated=True, **current_params)
+            
+            if not isinstance(page_response, PaginatedResponse):
+                raise TypeError("Expected PaginatedResponse, got {}".format(type(page_response)))
+            
+            if not page_response.items:
+                break
                 
-                page_response = self.list(url=url, paginated=True, **params)
+            for item in page_response.items:
+                yield item
                 
-                if not isinstance(page_response, PaginatedResponse):
-                    raise TypeError(f"Expected PaginatedResponse, got {type(page_response)}")
+            if not page_response.has_more:
+                break
                 
-                if not page_response.items:
-                    break
-                    
-                for item in page_response.items:
-                    yield item
-                    
-                if not page_response.has_more:
-                    break
-                    
-                offset += limit
+            next_token = page_response.next_token
         
     # Asynchronous methods
     
@@ -399,6 +353,10 @@ class LitecardResource:
         
         url = self._build_url(resource_id)
         response = await self._client._make_request_async("GET", url)
+        
+        # Handle responses wrapped in 'body' key
+        if isinstance(response, dict) and 'body' in response:
+            response = response['body']
         
         return self._create_instance(response)
 
@@ -433,12 +391,9 @@ class LitecardResource:
             pagination_data = self._extract_pagination_data(response, prepared_params)
             return PaginatedResponse(
                 items=instances,
-                offset=pagination_data.get('offset'),
-                limit=pagination_data.get('limit'),
-                total_count=pagination_data.get('total_count'),
-                next_cursor=pagination_data.get('next_cursor'),
-                previous_cursor=pagination_data.get('previous_cursor'),
-                has_more=pagination_data.get('has_more', False)
+                limit=pagination_data.get('limit', 10),
+                next_token=pagination_data.get('next_token'),
+                total_count=pagination_data.get('total_count')
             )
         
         return instances
@@ -452,6 +407,15 @@ class LitecardResource:
         prepared_data = self._prepare_request_data(data)
         response = await self._client._make_request_async("POST", url, json_data=prepared_data)
         
+        # Handle responses that may be wrapped or have different structures
+        if isinstance(response, dict):
+            if 'body' in response:
+                response = response['body']
+            # For creation responses that return IDs directly
+            elif len(response) == 1 and any(key.endswith('Id') for key in response.keys()):
+                # This is likely just an ID response, merge with original data
+                response = {**prepared_data, **response}
+        
         return self._create_instance(response)
         
     async def update_async(self: T, resource_id: str, data: Dict[str, Any]) -> T:
@@ -462,6 +426,10 @@ class LitecardResource:
         url = self._build_url(resource_id)
         prepared_data = self._prepare_request_data(data)
         response = await self._client._make_request_async("PUT", url, json_data=prepared_data)
+        
+        # Handle responses wrapped in 'body' key
+        if isinstance(response, dict) and 'body' in response:
+            response = response['body']
         
         return self._create_instance(response)
         
@@ -477,8 +445,6 @@ class LitecardResource:
         """
         Async generator that yields all resources matching the given parameters.
         
-        Supports both offset/limit and cursor-based pagination.
-        
         Args:
             **params: Filter parameters for the request
             
@@ -488,52 +454,26 @@ class LitecardResource:
         if not hasattr(self._client, '_make_request_async'):
             raise TypeError("This method requires an asynchronous client")
         
-        # Determine pagination type
-        use_cursor = 'cursor' in params
+        limit = params.get("limit", 10)
+        next_token = params.get("next")
         
-        if use_cursor:
-            # Cursor-based pagination
-            cursor = params.get('cursor')
-            while True:
-                if cursor:
-                    params['cursor'] = cursor
-                
-                page_response = await self.list_async(url=url, paginated=True, **params)
-                
-                if not isinstance(page_response, PaginatedResponse):
-                    raise TypeError(f"Expected PaginatedResponse, got {type(page_response)}")
-                
-                if not page_response.items:
-                    break
-                    
-                for item in page_response.items:
-                    yield item
-                    
-                if not page_response.has_more or not page_response.next_cursor:
-                    break
-                    
-                cursor = page_response.next_cursor
-        else:
-            # Offset/limit pagination
-            offset = params.get("offset", 0)
-            limit = params.get("limit", 50)
-            
-            while True:
-                params["offset"] = offset
-                params["limit"] = limit
+        while True:
+            current_params = {**params, "limit": limit}
+            if next_token:
+                current_params["next"] = next_token
 
-                page_response = await self.list_async(url=url, paginated=True, **params)
+            page_response = await self.list_async(url=url, paginated=True, **current_params)
 
-                if not isinstance(page_response, PaginatedResponse):
-                    raise TypeError(f"Expected PaginatedResponse, got {type(page_response)}")
+            if not isinstance(page_response, PaginatedResponse):
+                raise TypeError("Expected PaginatedResponse, got {}".format(type(page_response)))
 
-                if not page_response.items:
-                    break
-                    
-                for item in page_response.items:
-                    yield item
-                    
-                if not page_response.has_more:
-                    break
-                    
-                offset += limit
+            if not page_response.items:
+                break
+                
+            for item in page_response.items:
+                yield item
+                
+            if not page_response.has_more:
+                break
+                
+            next_token = page_response.next_token

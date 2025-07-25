@@ -3,6 +3,7 @@ import asyncio
 import time
 import logging
 from typing import Optional, Any, Dict, Union
+from datetime import datetime, timedelta
 
 from .exceptions import (
     LitecardAPIError, 
@@ -10,12 +11,33 @@ from .exceptions import (
     create_exception_from_response
 )
 from . import utils
+from .resources import (
+    Authentication,
+    Template,
+    Card,
+    Notification,
+    Scan,
+    Certificate,
+    Download,
+    Backlink,
+    Form,
+    CardOwner,
+    Pass,
+    NotificationGroup,
+    SubBusiness,
+    Business,
+    User,
+    Schedule,
+    Export,
+    Webhook,
+    CardUpload,
+    VoucherCode
+)
 from .throttler import throttler, async_throttler
 
 logger = logging.getLogger(__name__)
 
-# TODO: Update with actual Litecard API URL
-DEFAULT_BASE_URL = "https://api.litecard.com"
+DEFAULT_BASE_URL = "https://bff-api.demo.litecard.io"
 DEFAULT_TIMEOUT = 60.0
 
 
@@ -23,18 +45,27 @@ class BaseLitecardClient:
     def __init__(
         self,
         *,
-        api_token: str,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        api_token: Optional[str] = None,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT,
         max_retries: int = 5,
+        tenant: Optional[str] = None,
+        active_business_id: Optional[str] = None,
     ):
-        if not api_token:
-            raise ValueError("api_token is required.")
+        if not api_token and not (username and password):
+            raise ValueError("Either api_token or both username and password are required.")
 
-        self.api_token = api_token
+        self.username = username
+        self.password = password
+        self._api_token = api_token
+        self._token_expires_at: Optional[datetime] = None
         self.base_url = base_url.rstrip('/')
         self.timeout = timeout
         self.max_retries = max_retries
+        self.tenant = tenant
+        self.active_business_id = active_business_id
         self.utils = utils  # Make utils accessible
 
         self._client: Optional[Union[httpx.Client, httpx.AsyncClient]] = None
@@ -44,20 +75,62 @@ class BaseLitecardClient:
 
     def _initialize_resources(self):
         """Initialize resource classes."""
-        # TODO: Add resource initialization here once API endpoints are known
-        # Example:
-        # self.cards = Card(client=self)
-        # self.transactions = Transaction(client=self)
-        pass
+        self.auth = Authentication(client=self)
+        self.templates = Template(client=self)
+        self.cards = Card(client=self)
+        self.notifications = Notification(client=self)
+        self.scans = Scan(client=self)
+        self.certificates = Certificate(client=self)
+        self.downloads = Download(client=self)
+        self.backlinks = Backlink(client=self)
+        self.forms = Form(client=self)
+        self.card_owners = CardOwner(client=self)
+        self.passes = Pass(client=self)
+        self.notification_groups = NotificationGroup(client=self)
+        self.sub_businesses = SubBusiness(client=self)
+        self.business = Business(client=self)
+        self.users = User(client=self)
+        self.schedules = Schedule(client=self)
+        self.exports = Export(client=self)
+        self.webhooks = Webhook(client=self)
+        self.card_uploads = CardUpload(client=self)
+        self.voucher_codes = VoucherCode(client=self)
+
+    def _is_token_valid(self) -> bool:
+        """Check if current token is valid and not expired."""
+        if not self._api_token:
+            return False
+        if not self._token_expires_at:
+            return True  # If no expiry set, assume valid
+        return datetime.now() < self._token_expires_at
+
+    def _get_api_token(self) -> str:
+        """Get a valid API token, refreshing if necessary."""
+        if self._is_token_valid():
+            return self._api_token
+        
+        if not (self.username and self.password):
+            raise AuthenticationError("Token expired and no credentials available for refresh")
+        
+        # Token needs refresh - this will be implemented in sync/async specific methods
+        raise NotImplementedError("Token refresh must be implemented in subclasses")
 
     def _get_auth_headers(self) -> Dict[str, str]:
         """Generate authorization headers for Litecard API."""
-        # TODO: Update based on actual Litecard authentication method
-        return {
-            "Authorization": f"Bearer {self.api_token}",
+        token = self._get_api_token()
+        headers = {
+            "Authorization": f"Bearer {token}",
             "Accept": "application/json",
             "Content-Type": "application/json"
         }
+        
+        if self.tenant:
+            headers["x-user-tenant"] = self.tenant
+        
+        if self.active_business_id:
+            headers["x-active-business-id"] = self.active_business_id
+            
+        return headers
 
     def _handle_error_response(self, response: httpx.Response, method: str, url: str, **kwargs):
         """Centralized error handling."""
@@ -77,6 +150,51 @@ class LitecardClient(BaseLitecardClient):
         self._client = None
         super().__init__(*args, **kwargs)
         self._client = httpx.Client(base_url=self.base_url, timeout=self.timeout)
+
+    def _get_api_token(self) -> str:
+        """Get a valid API token, refreshing if necessary (sync version)."""
+        if self._is_token_valid():
+            return self._api_token
+        
+        if not (self.username and self.password):
+            raise AuthenticationError("Token expired and no credentials available for refresh")
+        
+        # Refresh token
+        self._refresh_token_sync()
+        return self._api_token
+
+    def _refresh_token_sync(self) -> None:
+        """Refresh the API token synchronously."""
+        if not isinstance(self._client, httpx.Client):
+            raise TypeError("HTTP client must be an instance of httpx.Client")
+        
+        auth_data = {
+            "username": self.username,
+            "password": self.password
+        }
+        
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if self.tenant:
+            headers["x-user-tenant"] = self.tenant
+        
+        try:
+            response = self._client.request(
+                "POST",
+                "/api/v1/token",
+                json=auth_data,
+                headers=headers,
+            )
+            
+            if 200 <= response.status_code < 300:
+                data = response.json()
+                self._api_token = data["access_token"]
+                expires_in = data.get("expires_in", 86400)  # Default 24 hours
+                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in - 300)  # 5 min buffer
+            else:
+                self._handle_error_response(response, "POST", "/api/v1/token")
+                
+        except httpx.RequestError as e:
+            raise LitecardAPIError(f"Failed to authenticate: {str(e)}")
 
     @throttler.throttle()
     def _make_request_sync(
@@ -122,6 +240,14 @@ class LitecardClient(BaseLitecardClient):
                             # Response is not JSON, return text
                             return response.text
                     return {}  # For 204 No Content
+                
+                # Handle 401 errors by refreshing token
+                if response.status_code == 401 and retries > 0:
+                    logger.warning("Received 401, refreshing token and retrying")
+                    self._refresh_token_sync()
+                    headers = self._get_auth_headers()
+                    retries -= 1
+                    continue
                 
                 retry_after_header = response.headers.get("Retry-After")
                 should_retry_rate_limit = response.status_code == 429 and retry_after_header and retry_after_header.isdigit()
@@ -171,6 +297,49 @@ class LitecardAsyncClient(BaseLitecardClient):
         super().__init__(*args, **kwargs)
         self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
 
+    def _get_api_token(self) -> str:
+        """Get a valid API token, refreshing if necessary (async version)."""
+        if self._is_token_valid():
+            return self._api_token
+        
+        raise AuthenticationError("Token expired - use await refresh_token_async() first")
+
+    async def _refresh_token_async(self) -> None:
+        """Refresh the API token asynchronously."""
+        if not isinstance(self._client, httpx.AsyncClient):
+            raise TypeError("HTTP client must be an instance of httpx.AsyncClient")
+        
+        if not (self.username and self.password):
+            raise AuthenticationError("Username and password required for token refresh")
+        
+        auth_data = {
+            "username": self.username,
+            "password": self.password
+        }
+        
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if self.tenant:
+            headers["x-user-tenant"] = self.tenant
+        
+        try:
+            response = await self._client.request(
+                "POST",
+                "/api/v1/token",
+                json=auth_data,
+                headers=headers,
+            )
+            
+            if 200 <= response.status_code < 300:
+                data = response.json()
+                self._api_token = data["access_token"]
+                expires_in = data.get("expires_in", 86400)  # Default 24 hours
+                self._token_expires_at = datetime.now() + timedelta(seconds=expires_in - 300)  # 5 min buffer
+            else:
+                self._handle_error_response(response, "POST", "/api/v1/token")
+                
+        except httpx.RequestError as e:
+            raise LitecardAPIError(f"Failed to authenticate: {str(e)}")
+
     @async_throttler.throttle()
     async def _make_request_async(
         self,
@@ -215,6 +384,14 @@ class LitecardAsyncClient(BaseLitecardClient):
                             # Response is not JSON, return text
                             return response.text
                     return {}
+
+                # Handle 401 errors by refreshing token
+                if response.status_code == 401 and retries > 0:
+                    logger.warning("Received 401, refreshing token and retrying")
+                    await self._refresh_token_async()
+                    headers = self._get_auth_headers()
+                    retries -= 1
+                    continue
 
                 retry_after_header = response.headers.get("Retry-After")
                 should_retry_rate_limit = response.status_code == 429 and retry_after_header and retry_after_header.isdigit()

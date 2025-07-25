@@ -179,3 +179,5 @@ local_config.py
 
 # Temporary files
 .old_*
+
+examples/*
