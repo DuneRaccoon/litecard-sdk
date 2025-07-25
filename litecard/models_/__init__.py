@@ -8,7 +8,7 @@ They are based on the OpenAPI specification.
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from enum import Enum
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # Base models
@@ -270,13 +270,281 @@ class SignUpOptions(BaseModel):
     no_pi: Optional[bool] = Field(False, alias="noPI", description="Disable PI requirement")
 
 
+class TemplateImagesV1(BaseModel):
+    logo: Optional[str] = Field(
+        None,
+        description='URL of uploaded a logo image (square), used by Apple, Google & Samsung, 300px by 300px.'
+    )
+    logo_dark_mode: Optional[str] = Field(
+        None,
+        alias='logoDarkMode',
+        description='URL of uploaded a logo image (square), used by Samsung, 300px by 300px. Used specifically for dark mode.'
+    )
+    logo_light_mode: Optional[str] = Field(
+        None,
+        alias='logoLightMode',
+        description='URL of uploaded a logo image (square), used by Samsung, 300px by 300px. Used specifically for light mode.'
+    )
+    hero: Optional[str] = Field(
+        None,
+        description='URL of uploaded hero image, used by Google. 1032px x 336px'
+    )
+    strip: Optional[str] = Field(
+        None,
+        description="URL of uploaded strip image, used by Apple. 1125px by 432px. Will overwrite Apple's thumbnail image."
+    )
+    apple_logo_override: Optional[str] = Field(
+        None,
+        alias='appleLogoOverride',
+        description='URL of uploaded logo image used by Apple. This will replace the shared logo image. 150px height with max width of 480px'
+    )
+    icon: Optional[str] = Field(
+        None,
+        description='URL of uploaded icon image, used by Apple'
+    )
+    thumbnail: Optional[str] = Field(
+        None,
+        description='URL of uploaded thumbnail image. 270px by 270px. Only available on Apple Event Ticket and Generic card types and certain Samsung Card Types.'
+    )
+    background: Optional[str] = Field(
+        None,
+        description='URL of uploaded background image. 270px by 270px. Only available on Apple Event Ticket card types'
+    )
+
+class Type8(Enum):
+    NOT_USED = 'NOT_USED'
+    QR_CODE = 'QR_CODE'
+    CODE_128 = 'CODE_128'
+    PDF_417 = 'PDF_417'
+    AZTEC = 'AZTEC'
+
+
+class TemplateBarcodeV1(BaseModel):
+    barcode_value: Optional[str] = Field(
+        None, alias='barcodeValue', description='Value of the Barcode'
+    )
+    message_encoding: Optional[str] = Field(
+        None, alias='messageEncoding', description='Message Encoding of the Barcode'
+    )
+    type: Optional[Type8] = Field(None, description='Type of the Barcode')
+    alt_text: Optional[str] = Field(
+        None,
+        alias='altText',
+        description='Displayed alternative value at the bottom of the barcode'
+    )
+    field_map: Optional[str] = Field(
+        None,
+        alias='fieldMap',
+        description='If barcodeValue is set to ${CUSTOM}. fieldMap must be present to identify which field the barcodeValue should be set from.'
+    )
+
+class Apple(BaseModel):
+    lock_screen_message: Optional[str] = Field(
+        None,
+        alias='lockScreenMessage',
+        description='Lock screen message displayed when a pass within proximity of the location'
+    )
+
+
+class Samsung(BaseModel):
+    address: Optional[str] = Field(
+        None, description='Address of the location'
+    )
+    name: Optional[str] = Field(None, description='Name of the location')
+
+class TemplateUsageV1Enum(Enum):
+    NOT_USED = 'NOT_USED'
+    APPLE_WALLET = 'APPLE_WALLET'
+    GOOGLE_WALLET = 'GOOGLE_WALLET'
+    SAMSUNG_WALLET = 'SAMSUNG_WALLET'
+
+
+class TemplateUsageV1(BaseModel):
+    __root__: List[TemplateUsageV1Enum] = Field(
+        ..., description='List of strings to indicate where a field is rendered'
+    )
+
+
+class TemplateLocationsV1Item(BaseModel):
+    id: Optional[str] = Field(None, description='Location ID')
+    lat: Optional[str] = Field(None, description='Latitude value')
+    lon: Optional[str] = Field(None, description='Longitude value')
+    apple: Optional[Apple] = Field(None, description='Apple specific location fields')
+    beacon_id: Optional[str] = Field(
+        None,
+        alias='beaconId',
+        description='proximityUUID of the Beacon. This is an alternative to long/lat'
+    )
+    samsung: Optional[Samsung] = Field(None, description='Location details')
+    order: Optional[float] = Field(
+        None,
+        description='Order of the locations. The order will be sorted in ascending order e.g. 1,2,3',
+    )
+    usage: Optional[TemplateUsageV1] = None
+
+
+class TemplateLocationsV1(BaseModel):
+    __root__: List[TemplateLocationsV1Item] = Field(
+        ...,
+        description='List of locations to be stored on the pass, used by Apple for Geo-Location messages. Max of 10 locations for apple passes.',
+    )
+
+
+
+class ExpiryType4(Enum):
+    NEVER = 'NEVER'
+
+
+class TemplateCardExpiryV11(BaseModel):
+    expiry_type: Optional[ExpiryType4] = Field(
+        None,
+        alias='expiryType',
+        description='Type of expiry, either NEVER, FIXED_DATE, FROM_ACTIVATION or FIXED_SCANS'
+    )
+
+
+class ExpiryType5(Enum):
+    FIXED_DATE = 'FIXED_DATE'
+
+
+class TemplateCardExpiryV12(BaseModel):
+    expiry_type: Optional[ExpiryType5] = Field(
+        None,
+        alias='expiryType',
+        description='Type of expiry, either NEVER, FIXED_DATE, FROM_ACTIVATION or FIXED_SCANS'
+    )
+    start_date: Optional[str] = Field(
+        None,
+        alias='startDate',
+        description='ISO 8601 date time that the card becomes active in the users digital wallet. For Apple cards, the card is still active however it will show up on the top of the stack and Google cards there is no effect unless they are grouped',
+    )
+    end_date: Optional[str] = Field(
+        None,
+        alias='endDate',
+        description='ISO 8601 date time that the card expires in the users digital wallet'
+    )
+
+
+class ExpiryType6(Enum):
+    FROM_ACTIVATION = 'FROM_ACTIVATION'
+
+
+class Timezone(Enum):
+    Australia_Adelaide = 'Australia/Adelaide'
+    Australia_Brisbane = 'Australia/Brisbane'
+    Australia_Darwin = 'Australia/Darwin'
+    Australia_Hobart = 'Australia/Hobart'
+    Australia_Melbourne = 'Australia/Melbourne'
+    Australia_Perth = 'Australia/Perth'
+    Australia_Sydney = 'Australia/Sydney'
+
+
+class Measurement(Enum):
+    DAYS = 'DAYS'
+    MONTHS = 'MONTHS'
+    YEARS = 'YEARS'
+
+
+class FromActivation1(BaseModel):
+    amount: Optional[str] = Field(
+        None,
+        description='The amount of time (based on the cardExpiry.fromActivation.measurement field) between the activation of the card produced by this template, and the expiry date'
+    )
+    measurement: Optional[Measurement] = Field(
+        None,
+        description='The unit of measurement to calculate the amount of time between the activation of the card produced by this template, and the expiry date'
+    )
+    timezone: Optional[Timezone] = Field(
+        None,
+        description='By default expiry is set as UTC. This is to set it as a specific timezone'
+    )
+
+
+class TemplateCardExpiryV13(BaseModel):
+    expiry_type: Optional[ExpiryType6] = Field(
+        None,
+        alias='expiryType',
+        description='Type of expiry, either NEVER, FIXED_DATE, FROM_ACTIVATION or FIXED_SCANS'
+    )
+    from_activation: Optional[FromActivation1] = Field(
+        None,
+        alias='fromActivation'
+    )
+
+
+class ExpiryType7(Enum):
+    FIXED_SCANS = 'FIXED_SCANS'
+
+
+class TemplateCardExpiryV14(BaseModel):
+    expiry_type: Optional[ExpiryType7] = Field(
+        None,
+        alias='expiryType',
+        description='Type of expiry, either NEVER, FIXED_DATE, FROM_ACTIVATION or FIXED_SCANS'
+    )
+    scans: Optional[float] = Field(
+        None, description='Number of scans remaining before pass expires'
+    )
+
+
+class TemplateCardExpiryV1(BaseModel):
+    __root__: Union[
+        TemplateCardExpiryV11, TemplateCardExpiryV12, TemplateCardExpiryV13, TemplateCardExpiryV14
+    ] = Field(
+        ...,
+        description='Card Expiry field on Template that details how cards created by the template will expire',
+    )
+    
+
+class Type9(Enum):
+    NOT_USED = 'NOT_USED'
+    URI_WEB = 'URI_WEB'
+    URI_TEL = 'URI_TEL'
+    URI_EMAIL = 'URI_EMAIL'
+    HOMEPAGE_URI = 'HOMEPAGE_URI'
+    HELP_URI = 'HELP_URI'
+
+
+class TemplateLinkV1(BaseModel):
+    id: Optional[str] = Field(None, description='Link ID')
+    uri: Optional[str] = Field(None, description='URI')
+    hyper_link_text: Optional[str] = Field(
+        None,
+        alias='hyperLinkText',
+        description='Add block of text with hyperlink by surrounding text with ${}, used by Apple Only'
+    )
+    title: Optional[str] = Field(None, description='Link title')
+    type: Optional[Type9] = Field(None, description='Type of link, used by Google Only')
+    usage: Optional[TemplateUsageV1] = None
+    position: Optional[float] = Field(
+        None,
+        description='Order of the links. The order will be sorted in ascending order e.g. 1,2,3',
+    )
+    
+
+class TemplateOverridesV1(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+    images: Optional[TemplateImagesV1] = None
+    barcode: Optional[TemplateBarcodeV1] = None
+    locations: Optional[TemplateLocationsV1] = None
+    card_expiry: Optional[TemplateCardExpiryV1] = Field(
+        None,
+        alias='cardExpiry'
+    )
+    links: Optional[List[TemplateLinkV1]] = Field(None, description='Template Links')
+
+
+
 class PrivateSignUpRequest(BaseModel):
     """Private sign up request."""
     template_id: str = Field(alias="templateId", description="Template ID")
     tier: Optional[str] = Field(None, description="Tier selection for multi-tiered templates")
     card_payload: BaseCardPayload = Field(alias="cardPayload", description="Card data")
     options: Optional[SignUpOptions] = Field(None, description="Sign up options")
-
+    template_overrides: Optional[TemplateOverridesV1] = Field(None, alias="templateOverrides", description="Template overrides")
 
 class SignUpResponse(BaseModel):
     """Sign up response."""

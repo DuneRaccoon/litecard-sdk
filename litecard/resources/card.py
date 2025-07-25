@@ -8,7 +8,10 @@ from ..models_ import (
     Card as CardModel,
     CardStatus,
     PrivateSignUpRequest,
-    SignUpResponse
+    SignUpResponse,
+    SignUpOptions,
+    BaseCardPayload,
+    TemplateOverridesV1,
 )
 
 
@@ -21,12 +24,12 @@ class Card(LitecardResource):
     model_class = CardModel
     
     def create_card(
-        self, 
+        self,
         template_id: str,
-        card_payload: Dict[str, Any],
-        options: Optional[Dict[str, Any]] = None,
+        card_payload: BaseCardPayload,
         tier: Optional[str] = None,
-        template_overrides: Optional[Dict[str, Any]] = None
+        options: Optional[SignUpOptions] = None,
+        template_overrides: Optional[TemplateOverridesV1] = None
     ) -> SignUpResponse:
         """
         Create a new card.
@@ -46,18 +49,18 @@ class Card(LitecardResource):
         
         request_data = {
             "templateId": template_id,
-            "cardPayload": card_payload
+            "cardPayload": card_payload.model_dump(exclude_none=True)
         }
         
         if options:
-            request_data["options"] = options
+            request_data["options"] = options.model_dump(exclude_none=True)
         
         if tier:
             request_data["tier"] = tier
             
         if template_overrides:
-            request_data["templateOverrides"] = template_overrides
-        
+            request_data["templateOverrides"] = template_overrides.model_dump(exclude_none=True)
+
         response = self._client._make_request_sync(
             "POST",
             self._build_url(),
