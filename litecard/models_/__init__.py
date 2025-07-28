@@ -201,13 +201,13 @@ class Template(BaseModel):
 
 # Card models  
 class BaseCardPayload(BaseModel):
+    model_config = ConfigDict(
+        extra="allow"
+    )
     """Base card payload with common fields."""
     email: Optional[str] = Field(None, description="Email address")
     phone: Optional[str] = Field(None, description="Mobile number")
     
-    class Config:
-        extra = "allow"  # Allow additional fields
-
 
 class CardOwner(BaseModel):
     """Copy of card owner information."""
