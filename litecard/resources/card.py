@@ -26,10 +26,10 @@ class Card(LitecardResource):
     def create_card(
         self,
         template_id: str,
-        card_payload: BaseCardPayload,
+        card_payload,
         tier: Optional[str] = None,
-        options: Optional[SignUpOptions] = None,
-        template_overrides: Optional[TemplateOverridesV1] = None
+        options = None,
+        template_overrides = None
     ) -> SignUpResponse:
         """
         Create a new card.
@@ -47,18 +47,25 @@ class Card(LitecardResource):
         if not hasattr(self._client, '_make_request_sync'):
             raise TypeError("This method requires a synchronous client")
         
+        if not isinstance(card_payload, BaseCardPayload):
+            card_payload = BaseCardPayload(**card_payload)
+            
         request_data = {
             "templateId": template_id,
             "cardPayload": card_payload.model_dump(exclude_none=True)
         }
         
         if options:
+            if not isinstance(options, SignUpOptions):
+                options = SignUpOptions(**options)
             request_data["options"] = options.model_dump(exclude_none=True)
         
         if tier:
             request_data["tier"] = tier
             
         if template_overrides:
+            if not isinstance(template_overrides, TemplateOverridesV1):
+                template_overrides = TemplateOverridesV1(**template_overrides)
             request_data["templateOverrides"] = template_overrides.model_dump(exclude_none=True)
 
         response = self._client._make_request_sync(
@@ -72,10 +79,10 @@ class Card(LitecardResource):
     def update_card(
         self, 
         card_id: str,
-        card_payload: Optional[Dict[str, Any]] = None,
+        card_payload = None,
         sync_static_fields: Optional[bool] = None,
         tier: Optional[str] = None,
-        template_overrides: Optional[Dict[str, Any]] = None
+        template_overrides = None
     ) -> Dict[str, Any]:
         """
         Update an existing card.
@@ -98,7 +105,9 @@ class Card(LitecardResource):
         }
         
         if card_payload:
-            request_data["cardPayload"] = card_payload
+            if not isinstance(card_payload, BaseCardPayload):
+                card_payload = BaseCardPayload(**card_payload)
+            request_data["cardPayload"] = card_payload.model_dump(exclude_none=True)
         
         if sync_static_fields is not None:
             request_data["syncStaticFields"] = sync_static_fields
@@ -107,7 +116,9 @@ class Card(LitecardResource):
             request_data["tier"] = tier
             
         if template_overrides:
-            request_data["templateOverrides"] = template_overrides
+            if not isinstance(template_overrides, TemplateOverridesV1):
+                template_overrides = TemplateOverridesV1(**template_overrides)
+            request_data["templateOverrides"] = template_overrides.model_dump(exclude_none=True)
         
         response = self._client._make_request_sync(
             "PATCH",
