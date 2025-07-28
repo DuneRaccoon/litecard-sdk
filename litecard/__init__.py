@@ -27,6 +27,46 @@ from .utils import (
     format_phone_international
 )
 
+# Import request types for easy access
+from .request_types import (
+    # Card request types
+    CreateCardRequest,
+    UpdateCardRequest,
+    SetCardStatusRequest,
+    CreateCardAndTemplateRequest,
+    GenerateBusinessCardRequest,
+    
+    # Template request types
+    CreateTemplateRequest,
+    UpdateTemplateRequest,
+    SetTemplateStatusRequest,
+    
+    # Notification request types
+    NotificationPayload,
+    NotificationSegments,
+    NotificationOptions,
+    SendNotificationRequest,
+    SendReminderRequest,
+    
+    # Scan request types
+    ScanCardRequest,
+    ScanAction,
+    ApplyTemplateActionsRequest,
+    
+    # Common types
+    SuccessResponse,
+    ErrorResponse as ErrorResponseType,
+    PaginatedListResponse,
+    DownloadCountResponse,
+    DownloadTrendResponse,
+    
+    # Query parameter types
+    PaginationParams,
+    TemplateQueryParams,
+    CardQueryParams,
+    ScanQueryParams,
+)
+
 # Import models for easy access
 from .models_ import (
     # Authentication models
@@ -121,6 +161,33 @@ __all__ = [
     "build_welcome_url",
     "validate_email",
     "format_phone_international",
+    
+    # Request type classes
+    "CreateCardRequest",
+    "UpdateCardRequest",
+    "SetCardStatusRequest",
+    "CreateCardAndTemplateRequest",
+    "GenerateBusinessCardRequest",
+    "CreateTemplateRequest",
+    "UpdateTemplateRequest",
+    "SetTemplateStatusRequest",
+    "NotificationPayload",
+    "NotificationSegments",
+    "NotificationOptions",
+    "SendNotificationRequest",
+    "SendReminderRequest",
+    "ScanCardRequest",
+    "ScanAction",
+    "ApplyTemplateActionsRequest",
+    "SuccessResponse",
+    "ErrorResponseType",
+    "PaginatedListResponse",
+    "DownloadCountResponse",
+    "DownloadTrendResponse",
+    "PaginationParams",
+    "TemplateQueryParams",
+    "CardQueryParams",
+    "ScanQueryParams",
     
     # Model classes
     "AuthenticationRequest",
